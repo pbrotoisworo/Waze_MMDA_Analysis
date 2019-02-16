@@ -5,8 +5,9 @@ import os
 import time
 
 # SCRIPT PARAMETERS
-bufferDistance = "1000 Meters"
-runMatchRate = False
+bufferDistance = "500 Meters"
+timeBin = "3h"
+runMatchRate = True
 runIntersectionAnalysis = True
 
 # Declare initial variables
@@ -132,11 +133,21 @@ for idxMMDA, csvMMDA in enumerate(df['MMDA']):
         arcpy.SpatialJoin_analysis(target_features=Buffer_Intersect_WazeToMMDA,
                                    join_features=BufferMMDA_shp,
                                    out_feature_class=wazeOneToManyMatches,
-                                   join_operation='JOIN_ONE_TO_MANY',
+                                   join_operation='JOIN_ONE_TO_ONE',
                                    join_type='KEEP_ALL',
                                    match_option='INTERSECT')
 
         if firstLoopIntersectionAnalysis == True:
+
+            folder = 'data\\' + 'matches'
+            for the_file in os.listdir(folder):
+                file_path = os.path.join(folder, the_file)
+                try:
+                    if os.path.isfile(file_path):
+                        os.unlink(file_path)
+                except Exception as e:
+                    print(e)
+            
             df_IntersectionAnalysis = pd.DataFrame([row for row in arcpy.da.SearchCursor(wazeOneToManyMatches,field_names='*')])
             firstLoopIntersectionAnalysis = False
             
@@ -152,7 +163,7 @@ for idxMMDA, csvMMDA in enumerate(df['MMDA']):
             df_AppendIntersectionAnalysis = pd.DataFrame([row for row in arcpy.da.SearchCursor(wazeOneToManyMatches,field_names='*')])
             # print(df_AppendIntersectionAnalysis)
             # TRY TO USE CONCAT INSTEAD
-            df_IntersectionAnalysis.append(df_AppendIntersectionAnalysis, ignore_index=True)
+            df_IntersectionAnalysis = pd.concat([df_IntersectionAnalysis, df_AppendIntersectionAnalysis])
             arcpy.TableToExcel_conversion(wazeOneToManyMatches, dataMatches + '\\' + fileWazeMatches + '.xls')
 
     # print('Output Statistics')
@@ -188,12 +199,14 @@ for idxMMDA, csvMMDA in enumerate(df['MMDA']):
     print('Duplicate/MMDA Total: {}/{}\n'.format(duplicateTotal, MMDATotal))
     print('Current MMDA Duplicate Ratio: {:.2f}'.format(duplicateRatio))
 
+# Save CSV files from the extra modules
 if runMatchRate == True:
-    df_match.to_csv(r'C:\Users\Panji\Documents\Python Scripts\Non-Jupyter Py Scripts\DOTr\data\histograms\histogram.csv',
+    df_match.to_csv(r'C:\Users\Panji\Documents\Python Scripts\Non-Jupyter Py Scripts\DOTr\data\Contribution of Waze\histogram_{}_{}.csv'.format(timeBin, bufferDistance),
                     index=False, encoding='utf-8')
     print('Current matching dataframe shape: {}'.format(df_match.shape))
 if runIntersectionAnalysis == True:
-    df_IntersectionAnalysis.to_csv(r'C:\Users\Panji\Documents\Python Scripts\Non-Jupyter Py Scripts\DOTr\data\matches\00_matches.csv')
+    df_IntersectionAnalysis.to_csv(r'C:\Users\Panji\Documents\Python Scripts\Non-Jupyter Py Scripts\DOTr\data\Contribution of Waze\IntersectionAnalysis_{}_{}.csv'.format(timeBin, bufferDistance),
+                                   encoding='utf-8')
     
 print('===============================')
 print('\nAnalysis done!')
